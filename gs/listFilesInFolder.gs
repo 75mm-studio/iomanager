@@ -5,7 +5,7 @@ function listFilesInFolder(folderName) {
 
 
 //change the folder ID below to reflect your folder's ID (look in the URL when you're in your folder)
-    var folder = DriveApp.getFolderById("1VtUkxTwylUQ1xxVgnjIifYlp6Fytnbv2");
+    var folder = DriveApp.getFolderById("FOLDER_ID_IS_HERE");
     var contents = folder.getFiles();
 
     var cnt = 0;
