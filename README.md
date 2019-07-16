@@ -14,16 +14,18 @@ show
         |   └─ S001_0020
         |       └─ S001_0020.####.dpx
         └─ 190720
-            ├─ S002_0010
-            |   └─ S002_0010.####.dpx
-            └─ S002_0020
-                └─ S002_0020.####.dpx
+            ├─ S002_0110
+            |   └─ S002_0110.####.dpx
+            └─ S002_0120
+                └─ S002_0120.####.dpx
 ```
 
 ```
 RESULT
-/show/lazypic_190701_circle/scenes/S001/CIR_01_0010/plate/dpx/CIR_01_0010.####.dpx
-/show/lazypic_190701_circle/scenes/S001/CIR_02_0020/plate/dpx/CIR_02_0020.####.dpx
+/show/<client>_<create date>_<project name>/scenes/S001_0010/plate/dpx/S001_0010.####.dpx
+/show/<client>_<create date>_<project name>/scenes/S001_0020/plate/dpx/S001_0020.####.dpx
+/show/<client>_<create date>_<project name>/scenes/S001_0010/plate/dpx/S002_0110.####.dpx
+/show/<client>_<create date>_<project name>/scenes/S001_0020/plate/dpx/S002_0120.####.dpx
 
 show
 └─ SHOW_NAME <client>_<create date>_<project name> (ex. lazypic_190701_circle)
@@ -46,5 +48,5 @@ show
 |-------------------|-----------|-------------|---|-------------|--------------|-------------------|
 | 190715            | S001_0010 | <10% IMAGE> |24 | 1001        | 1100         | 100               |
 | 190715            | S001_0020 | <10% IMAGE> |24 | 1001        | 1200         | 200               |
-| 190720            | S002_0010 | <10% IMAGE> |24 | 1001        | 1600         | 600               |
-| 190720            | S002_0020 | <10% IMAGE> |24 | 1001        | 1750         | 750               |
+| 190720            | S002_0110 | <10% IMAGE> |24 | 1001        | 1600         | 600               |
+| 190720            | S002_0120 | <10% IMAGE> |24 | 1001        | 1750         | 750               |
