@@ -27,20 +27,11 @@ RESULT
 /show/<client>_<create date>_<project name>/scenes/S001_0010/plate/dpx/S002_0110.####.dpx
 /show/<client>_<create date>_<project name>/scenes/S001_0020/plate/dpx/S002_0120.####.dpx
 
-show
-└─ SHOW_NAME <client>_<create date>_<project name> (ex. lazypic_190701_circle)
-    ├─ assets
-    ├─ data
-    ├─ images
-    ├─ input
-    ├─ output
-    ├─ sourceimages
-    └─ scenes
-        └─ SEQUENCE_NAME (ex. S001)
-            └─ SHOT_NAME <plate_name> (ex. CIR_01_0010)
-                └─ plate
-                    └─ PLATE_FILE_EXTENTION (ex. dpx)
-                        └─  <plate_name>.####.<plate_file_extention> (ex. CIR_01_0010.####.dpx)
+THUMBNAIL PATH
+/show/<client>_<create date>_<project name>/input/190715/thumb/S001_0010.jpg
+/show/<client>_<create date>_<project name>/input/190715/thumb/S001_0020.jpg
+/show/<client>_<create date>_<project name>/input/190720/thumb/S002_0110.jpg
+/show/<client>_<create date>_<project name>/input/190720/thumb/S002_0120.jpg
 ```
 
 
