@@ -109,7 +109,7 @@ def fileInfo(name, nameDict):
 	nameDict["fps"] = ffpInfo["streams"][0]["r_frame_rate"].split("/")[0]
 	return nameDict
 
-def csvTask(path, project):
+def csvTask(path):
 	"""
 	csv파일을 생성하는 테스크
 	"""
@@ -128,17 +128,18 @@ def csvTask(path, project):
 	if not fileDict:
 		err = "Error - 파일 분석에 실패했습니다."
 		return err
-	csvSave(csvFile, fileDict, project)
+	csvSave(csvFile, fileDict, path)
 	openOffice(csvFile)
 
-def csvSave(csvFile, fileDict, project):
+def csvSave(csvFile, fileDict, path):
 	"""
 	csv파일의 경로와, 파일 딕셔너리를 받아, csv파일에 저장한다.
 	"""
+	dateFolder = os.path.basename(path)
 	with open(csvFile, "w") as f:
 		csvW = csv.writer(f)
 		csvW.writerow([
-			"Show",
+			"Input Folder Date",
 			"Shot",
 			"Thumbnail",
 			"Format",
@@ -161,9 +162,9 @@ def csvSave(csvFile, fileDict, project):
 			])
 		for name in fileDict.keys():
 			csvW.writerow([
-				project,
+				dateFolder,
 				fileDict[name]["shotname"],
-				"%s/%s.jpg"%(fileDict[name]["platepath"], fileDict[name]["shotname"]),
+				"%s/thumb/%s.jpg"%(path, fileDict[name]["shotname"]),
 				"%sx%s"%(fileDict[name]["width"], fileDict[name]["height"]),
 				fileDict[name]["fps"],
 				fileDict[name]["first"],
@@ -313,6 +314,13 @@ def createThumb(line, errList, sem):
 	else:
 		orgPlate = origin%(first + ((last - first) / 2)) # Use middle frame
 	width = int(fmt.split("x")[0]) / 10 # 1/10 size
+	thumbFolder = os.path.dirname(thumbPath)
+	# Make dirs
+	proc = subprocess.Popen(["mkdir -p %s"%thumbFolder], stdout = subprocess.PIPE,  stderr = subprocess.PIPE, shell=True)
+	stdout, stderr = proc.communicate()
+	if stderr:
+		errList.append("Error - %s"%stderr)
+	# Make thumbnail
 	proc = subprocess.Popen(["%s -y -loglevel error -i %s -vf scale=%s:-1 %s"%(FFMPEG, orgPlate, width, thumbPath)],
 		stdout = subprocess.PIPE, 
 		stderr = subprocess.PIPE,
@@ -349,7 +357,7 @@ ioManager V1.0 - I/O Management Tool
     $ iomanager -v
 -c, --copy : 해당 폴더 또는 사용자가 입력한 폴더의 이름을 가진 csv 데이터로 "/show/PROJECT/scenes" 하위에 복사합니다. plate 및 ext이름의 폴더가 생성되며, thumbnail을 생성합니다.
     $ iomanager -c
--t, thumb : 해당 폴더 또는 사용자가 입력한 폴더의 이름을 가진 csv 데이터로 약속된 폴더에 thumbnail을 생성합니다.
+-t, --thumb : 해당 폴더 또는 사용자가 입력한 폴더의 이름을 가진 csv 데이터로 약속된 폴더에 thumbnail을 생성합니다.
     $ iomanager -t
 """
 	)
@@ -389,7 +397,7 @@ def main():
 		help()
 		sys.exit(1)
 	if csv:
-		err = csvTask(path, project)
+		err = csvTask(path)
 		if err:
 			print(err)
 			sys.exit(1)
