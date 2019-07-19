@@ -12,5 +12,5 @@ def printBar(iteration, total):
 	sys.stdout.write("\r- Progress |%s| %s%%"%( bar, percent))
 	sys.stdout.flush()
 	if iteration == total:
-		sys.stdout.write("\33[92m  Complete \33[0m")
+		sys.stdout.write("\33[92m  Complete \33[0m\n")
 		sys.stdout = sys.__stdout__
