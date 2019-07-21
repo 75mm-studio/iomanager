@@ -417,7 +417,7 @@ def saveLog(path, errLog):
 def help():
 	print(
 """
-ioManager V1.0 - I/O Management Tool
+ioManager V1.5 - I/O Management Tool
 
 -h, --help : Help
     $ iomanager -h
