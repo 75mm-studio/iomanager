@@ -8,11 +8,12 @@ import csv
 import subprocess
 import threading
 import progress
+import time
 
 SEM = 2
-FFPROBE = "/usr/local/bin/ffprobe"
-FFMPEG = "/usr/local/bin/ffmpeg"
-LIBEROOFFICE = "/opt/libreoffice5.4/program/soffice"
+FFPROBE = "/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffprobe"
+FFMPEG = "/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffmpeg"
+LIBEROOFFICE = "/usr/bin/soffice"
 
 def findImages(path):
 	"""
@@ -27,7 +28,7 @@ def findImages(path):
 			fileList.append(os.path.join(rootname,filename))
 	return fileList
 
-def fileAnalyze(fileList, path):
+def fileAnalyze(fileList, path, dateFolder):
 	"""
 	파일 리스트를 받아, 멀티쓰레딩으로 파일의 정보를 분석하여 딕셔너리의 형태로 반환한다.
 	"""
@@ -37,9 +38,10 @@ def fileAnalyze(fileList, path):
 	sem = threading.Semaphore(SEM)
 	threads = []
 	fileDict = {}
+	startTime = time.time()
 	for fileName in fileList:
 		lock.acquire()
-		t = threading.Thread(target=seqInfo, args=(fileName, fileDict, path, sem))
+		t = threading.Thread(target=seqInfo, args=(fileName, fileDict, path, dateFolder, sem))
 		t.start()
 		lock.release()
 		threads.append(t)
@@ -47,7 +49,7 @@ def fileAnalyze(fileList, path):
 	for t in threads:
 		num += 1
 		t.join()
-		progress.printBar(num,len(fileList))
+		progress.printBar(num, len(fileList), startTime)
 	# Add info
 	for name in fileDict.keys():
 		numList = map(int, fileDict[name]["numlist"])
@@ -57,13 +59,13 @@ def fileAnalyze(fileList, path):
 		fileDict[name] = value
 	return fileDict
 
-def seqInfo(fileName, fileDict, path, sem):
+def seqInfo(fileName, fileDict, path, dateFolder, sem):
 	"""
 	시퀀스네임을 받아 정보를 분석하여 딕셔너리에 담는다.
 	"""
 	sem.acquire()
 	fullName, ext = os.path.splitext(fileName)
-	platePath = "%s/scenes%s/plate"%(path.split("/input/")[0], os.path.dirname(fileName).split(path)[1])
+	platePath = "%s/scenes%s/plate"%(path.split("/input/")[0], os.path.dirname(fileName).replace(dateFolder, ""))
 	nameGroup = re.search("(.+)([\._])(\d+)$",fullName)
 	if not nameGroup:
 		name = fullName + ext
@@ -109,12 +111,12 @@ def fileInfo(name, nameDict):
 	nameDict["fps"] = ffpInfo["streams"][0]["r_frame_rate"].split("/")[0]
 	return nameDict
 
-def csvTask(path):
+def csvTask(path, dateFolder):
 	"""
 	csv파일을 생성하는 테스크
 	"""
 	err = ""
-	csvFile = "%s.csv"%path
+	csvFile = "%s.csv"%dateFolder
 	if os.path.exists(csvFile):
 		userInput = raw_input("Overwrite csv file?\n")
 		if userInput not in ["y", "Y", "yes", "Yes", "YES"]:
@@ -124,22 +126,26 @@ def csvTask(path):
 	if not fileList:
 		err = "Error - 이미지 파일이 존재하지 않습니다."
 		return err
-	fileDict = fileAnalyze(fileList, path)
+	fileDict = fileAnalyze(fileList, path, dateFolder)
 	if not fileDict:
 		err = "Error - 파일 분석에 실패했습니다."
 		return err
-	csvSave(csvFile, fileDict, path)
+	csvSave(csvFile, fileDict, path, dateFolder)
+	errList = checkData(csvFile, dateFolder)
+	if errList:
+		for err in errList:
+			print(err)
 	openOffice(csvFile)
 
-def csvSave(csvFile, fileDict, path):
+def csvSave(csvFile, fileDict, path, dateFolder):
 	"""
 	csv파일의 경로와, 파일 딕셔너리를 받아, csv파일에 저장한다.
 	"""
-	dateFolder = os.path.basename(path)
 	with open(csvFile, "w") as f:
 		csvW = csv.writer(f)
 		csvW.writerow([
 			"Input Folder Date",
+			"Dirtory Folder",
 			"Shot",
 			"Thumbnail",
 			"Format",
@@ -160,11 +166,12 @@ def csvSave(csvFile, fileDict, path):
 			"Input Path",
 			"Plate Path"
 			])
-		for name in fileDict.keys():
+		for name in sorted(fileDict.keys()):
 			csvW.writerow([
-				dateFolder,
+				os.path.basename(dateFolder),
+				os.path.dirname(name).replace(dateFolder, ""),
 				fileDict[name]["shotname"],
-				"%s/thumb/%s.jpg"%(path, fileDict[name]["shotname"]),
+				"%s/thumb/%s.jpg"%(dateFolder, fileDict[name]["shotname"]),
 				"%sx%s"%(fileDict[name]["width"], fileDict[name]["height"]),
 				fileDict[name]["fps"],
 				fileDict[name]["first"],
@@ -183,6 +190,30 @@ def csvSave(csvFile, fileDict, path):
 				name,
 				"%s/%s"%(fileDict[name]["platepath"], fileDict[name]["ext"])
 				])
+
+def checkData(csvFile, dateFolder):
+	"""
+	csv파일을 받아, 이전 데이터와 비교하여 중본된 이름 또는 플레이트 파일이 있다면 에러리스트를 반환한다.
+	"""
+	errList = []
+	prjCsvFile = "%s/data.csv"%os.path.dirname(dateFolder)
+	if not os.path.exists(csvFile):
+		return errList
+	prjData = importCSV(prjCsvFile)
+	nameList = []
+	plateList = []
+	for prjLine in prjData:
+		nameList.append(prjLine[2])
+		plateList.append(prjLine[20])
+	data = importCSV(csvFile)
+	for line in data:
+		name = line[2]
+		platePath = line[20]
+		if name in nameList:
+			errList.append("Error - 중복된 샷 네임이 존재합니다. %s"%name)
+		if platePath in plateList:
+			errList.append("Error - 중복된 plate 파일이 존재합니다. %s"%platePath)
+	return errList
 
 def openOffice(csvFile):
 	"""
@@ -212,10 +243,10 @@ def mkDataList(data):
 	print("Making data list...")
 	dataDict = {}
 	for line in data:
-		origin = line[18]
-		platePath = line[19]
-		first = int(line[5])
-		last = int(line[6])
+		origin = line[19]
+		platePath = line[20]
+		first = int(line[6])
+		last = int(line[7])
 		if first == 1 and last == 1:
 			dataDict[origin] = platePath
 			continue
@@ -224,6 +255,43 @@ def mkDataList(data):
 			dataDict[origin%frame] = platePath
 			frame += 1
 	return dataDict
+
+def prjCsvSave(data, dateFolder):
+	"""
+	파일 데이터를 받아, 통합 csv파일에 저장한다.
+	"""
+	prjData = []
+	csvFile = "%s/data.csv"%os.path.dirname(dateFolder)
+	if os.path.exists(csvFile):
+		prjData = importCSV(csvFile)
+	prjData += data
+	with open(csvFile, "w") as f:
+		csvW = csv.writer(f)
+		csvW.writerow([
+			"Input Folder Date",
+			"Dirtory Folder",
+			"Shot",
+			"Thumbnail",
+			"Format",
+			"FPS",
+			"ORG_In",
+			"ORG_Out",
+			"TW_In",
+			"TW_Out",
+			"Repo",
+			"Camera",
+			"Film Back",
+			"Focal Length",
+			"Assign",
+			"Status",
+			"Output",
+			"Deadline",
+			"Task",
+			"Input Path",
+			"Plate Path"
+			])
+		for line in prjData:
+			csvW.writerow(line)
 
 def copyTask(dataDict, path):
 	"""
@@ -235,6 +303,7 @@ def copyTask(dataDict, path):
 	sem = threading.Semaphore(SEM)
 	threads = []
 	errList = []
+	startTime = time.time()
 	for trgt in dataDict.keys():
 		lock.acquire()
 		t = threading.Thread(target=copyFiles, args=(trgt, dataDict[trgt], errList, sem))
@@ -245,7 +314,7 @@ def copyTask(dataDict, path):
 	for t in threads:
 		num += 1
 		t.join()
-		progress.printBar(num, len(dataDict.keys()))
+		progress.printBar(num, len(dataDict.keys()), startTime)
 	# save Error log
 	if errList:
 		errLog = {}
@@ -280,6 +349,7 @@ def thumbTask(data, path):
 	sem = threading.Semaphore(SEM)
 	threads = []
 	errList = []
+	startTime = time.time()
 	for line in data:
 		lock.acquire()
 		t = threading.Thread(target=createThumb, args=(line, errList, sem))
@@ -290,7 +360,7 @@ def thumbTask(data, path):
 	for t in threads:
 		num += 1
 		t.join()
-		progress.printBar(num, len(data))
+		progress.printBar(num, len(data), startTime)
 	# save Error log
 	if errList:
 		errLog = {}
@@ -304,11 +374,11 @@ def createThumb(line, errList, sem):
 	에러가 발생되면 에러리스트에 추가한다.
 	"""
 	sem.acquire()
-	origin = line[18]
-	first = int(line[5])
-	last = int(line[6])
-	thumbPath = line[2]
-	fmt = line[3]
+	origin = line[19]
+	first = int(line[6])
+	last = int(line[7])
+	thumbPath = line[3]
+	fmt = line[4]
 	if first == 1 and last == 1:
 		orgPlate = origin
 	else:
@@ -388,30 +458,35 @@ def main():
 			thumb = True
 		else:
 			"Check Option '-h, --help'"
-	regx = re.search("/show/(.+)/input/\d+", path)
+	regx = re.search("/show/.+/input/(\d+)", path)
 	if not regx:
 		print("Error - 약속된 경로가 아닙니다. ex) /show/PROJECT/input/DATE/")
 		sys.exit(1)
-	project = regx.group(1)
+	dateFolder = regx.group(1)
+	dateFolder = path.split("/%s"%dateFolder)[0] + "/" + dateFolder
 	if not csv and not copy and not thumb:
 		help()
 		sys.exit(1)
 	if csv:
-		err = csvTask(path)
+		err = csvTask(path, dateFolder)
 		if err:
 			print(err)
 			sys.exit(1)
 	if copy:
-		csvFile = "%s.csv"%path
+		csvFile = "%s.csv"%dateFolder
+		if not os.path.exists(csvFile):
+			print("Error - no CSV")
+			sys.exit(1)
 		data = importCSV(csvFile)
 		if not data:
 			print("Error - no CSV data.")
 			sys.exit(1)
+		prjCsvSave(data, dateFolder)
 		dataDict = mkDataList(data)
 		copyTask(dataDict, path)
 		thumbTask(data, path)
 	if thumb:
-		csvFile = "%s.csv"%path
+		csvFile = "%s.csv"%dateFolder
 		data = importCSV(csvFile)
 		if not data:
 			print("Error - no CSV data.")
