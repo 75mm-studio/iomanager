@@ -200,6 +200,8 @@ def checkData(csvFile, dateFolder):
 	if not os.path.exists(csvFile):
 		return errList
 	prjData = importCSV(prjCsvFile)
+	if not prjData:
+		return errList
 	nameList = []
 	plateList = []
 	for prjLine in prjData:
@@ -230,6 +232,8 @@ def importCSV(csvFile):
 	Import csv file.
 	"""
 	data = []
+	if not os.path.exists(csvFile):
+		return data
 	with open(csvFile, "r") as f:
 		for line in csv.reader(f):
 			data.append(line)
@@ -263,7 +267,7 @@ def prjCsvSave(data, dateFolder):
 	prjData = []
 	csvFile = "%s/data.csv"%os.path.dirname(dateFolder)
 	if os.path.exists(csvFile):
-		prjData = importCSV(csvFile)
+		data = importCSV(csvFile)
 	prjData += data
 	with open(csvFile, "w") as f:
 		csvW = csv.writer(f)
@@ -417,7 +421,7 @@ def saveLog(path, errLog):
 def help():
 	print(
 """
-ioManager V1.5 - I/O Management Tool
+ioManager V1.6 - I/O Management Tool
 
 -h, --help : Help
     $ iomanager -h
