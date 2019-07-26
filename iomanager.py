@@ -13,7 +13,7 @@ import time
 SEM = 2
 FFPROBE = "/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffprobe"
 FFMPEG = "/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffmpeg"
-LIBEROOFFICE = "/usr/bin/soffice"
+LIBREOFFICE = "/usr/bin/soffice"
 
 def findImages(path):
 	"""
@@ -28,7 +28,7 @@ def findImages(path):
 			fileList.append(os.path.join(rootname,filename))
 	return fileList
 
-def fileAnalyze(fileList, path, dateFolder):
+def fileAnalyze(fileList, path):
 	"""
 	파일 리스트를 받아, 멀티쓰레딩으로 파일의 정보를 분석하여 딕셔너리의 형태로 반환한다.
 	"""
@@ -41,7 +41,7 @@ def fileAnalyze(fileList, path, dateFolder):
 	startTime = time.time()
 	for fileName in fileList:
 		lock.acquire()
-		t = threading.Thread(target=seqInfo, args=(fileName, fileDict, path, dateFolder, sem))
+		t = threading.Thread(target=seqInfo, args=(fileName, fileDict, path, sem))
 		t.start()
 		lock.release()
 		threads.append(t)
@@ -59,13 +59,13 @@ def fileAnalyze(fileList, path, dateFolder):
 		fileDict[name] = value
 	return fileDict
 
-def seqInfo(fileName, fileDict, path, dateFolder, sem):
+def seqInfo(fileName, fileDict, path, sem):
 	"""
 	시퀀스네임을 받아 정보를 분석하여 딕셔너리에 담는다.
 	"""
 	sem.acquire()
 	fullName, ext = os.path.splitext(fileName)
-	platePath = "%s/scenes%s/plate"%(path.split("/input/")[0], os.path.dirname(fileName).replace(dateFolder, ""))
+	platePath = "%s/scenes/%s/plate"%(path.split("/input/")[0], os.path.dirname(fileName).replace(path, ""))
 	nameGroup = re.search("(.+)([\._])(\d+)$",fullName)
 	if not nameGroup:
 		name = fullName + ext
@@ -126,7 +126,7 @@ def csvTask(path, dateFolder):
 	if not fileList:
 		err = "Error - 이미지 파일이 존재하지 않습니다."
 		return err
-	fileDict = fileAnalyze(fileList, path, dateFolder)
+	fileDict = fileAnalyze(fileList, path)
 	if not fileDict:
 		err = "Error - 파일 분석에 실패했습니다."
 		return err
@@ -223,7 +223,7 @@ def openOffice(csvFile):
 	"""
 	# open csvFile
 	try:
-		subprocess.Popen([LIBEROOFFICE,"--calc",csvFile])
+		subprocess.Popen([LIBREOFFICE,"--calc",csvFile])
 	except:
 		print("libreoffice5.4를 실행 할 수 없습니다. 수동으로 파일을 열어주세요.\n%s"%csvFile)
 
@@ -421,7 +421,7 @@ def saveLog(path, errLog):
 def help():
 	print(
 """
-ioManager V1.6 - I/O Management Tool
+ioManager V1.7 - I/O Management Tool
 
 -h, --help : Help
     $ iomanager -h
@@ -462,6 +462,8 @@ def main():
 			thumb = True
 		else:
 			"Check Option '-h, --help'"
+	if not path.endswith("/"):
+		path += "/"
 	regx = re.search("/show/.+/input/(\d+)", path)
 	if not regx:
 		print("Error - 약속된 경로가 아닙니다. ex) /show/PROJECT/input/DATE/")
