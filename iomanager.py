@@ -23,7 +23,7 @@ def findImages(path):
 	fileList = []
 	for rootname, _, filenames in os.walk(path):
 		for filename in filenames:
-			if not filename.endswith((".dpx",".exr",".jpg",".jpeg",".tiff",".tif")):
+			if not filename.lower().endswith((".dpx",".exr",".jpg",".jpeg",".tiff",".tif")):
 				continue
 			fileList.append(os.path.join(rootname,filename))
 	return fileList
@@ -369,7 +369,7 @@ def thumbTask(data, path):
 	if errList:
 		errLog = {}
 		errLog["thumblog"] = errList
-		print("Error - Error occurs during the making thumbnail process.")
+		print("Error - Error occurs during making thumbnail process.")
 		saveLog(path, errLog)
 
 def createThumb(line, errList, sem):
@@ -396,7 +396,7 @@ def createThumb(line, errList, sem):
 		errList.append("Error - %s"%stderr)
 	# Make thumbnail
 	proc = subprocess.Popen(["%s -y -loglevel error -i %s -vf scale=%s:-1 %s"%(FFMPEG, orgPlate, width, thumbPath)],
-		stdout = subprocess.PIPE, 
+		stdout = subprocess.PIPE,
 		stderr = subprocess.PIPE,
 		shell=True)
 	stdout, stderr = proc.communicate()
@@ -418,10 +418,75 @@ def saveLog(path, errLog):
 	with open(logJson, "w") as f:
 		json.dump(log, f, indent=4, ensure_ascii=False)
 
+def makeXlsx(csvFile):
+	"""
+	생성된 csv파일을 이용해 xlsx파일을 생성한다.
+	컨버팅된 썸네일 이미지를 xlsx파일에 삽입한다.
+	"""
+	print("Creating xlsx...")
+	import xlsxwriter
+	# Import Data
+	data = []
+	with open(csvFile, "r") as f:
+		for line in csv.reader(f):
+			data.append(line)
+	# Create an new Excel file and add a worksheet.
+	workbook = xlsxwriter.Workbook(csvFile.replace(".csv", ".xlsx"))
+	worksheet = workbook.add_worksheet()
+	# Create format
+	firstRowFormat = workbook.add_format({"bold": True})
+	firstRowFormat.set_align("center")
+	firstRowFormat.set_align("vcenter")
+	cell_format = workbook.add_format()
+	cell_format.set_align("center")
+	cell_format.set_align("vcenter")
+	# Set width, height
+	widthDict = {}
+	imgWidth, imgHeight = 0, 0
+	if "x" in data[1][4]:
+		imgWidth, imgHeight = data[1][4].split("x") # get Image Size, Use first image as sample
+	row = 0
+	for line in data:
+		col = 0
+		for value in line:
+			# Set width
+			thisWidth = len(value)
+			widthDict = getColumnWidth(widthDict, col, thisWidth)
+			worksheet.set_column(col, col, widthDict[col])
+			# Set item
+			if row == 0: # First row
+				worksheet.write(row, col, value, firstRowFormat)
+			elif col == 3: # thumbnail
+				if not os.path.exists(value):
+					print("Error : Thumbnail is not exists : %s"%value)
+					continue
+				worksheet.insert_image(row, col, value)
+				worksheet.set_row(row, int(imgHeight)/13) # thumbnail 이미지는 1/10이다. 대략 13으로 나누어야 높이가 맞는다.
+			else:
+				worksheet.write(row, col, value, cell_format)
+			col += 1
+		row += 1
+
+	worksheet.set_column(3, 3, int(imgWidth)/70) # 대략 70으로 나누어야 넓이가 맞는다.
+	workbook.close()
+
+def getColumnWidth(widthDict, col, thisWidth):
+	"""
+	텍스트의 가로 길이와, 해당 컬럼, 컬럼별 가로길이가 포함된 딕셔너리를 받아,
+	가장 넓은 가로 길이를 반환한다.
+	"""
+	if col not in widthDict.keys():
+		widthDict[col] = thisWidth
+		return widthDict
+	if thisWidth > widthDict[col]:
+		widthDict[col] = thisWidth
+		return widthDict
+	return widthDict
+
 def help():
 	print(
 """
-ioManager V1.7 - I/O Management Tool
+ioManager V1.8 - I/O Management Tool
 
 -h, --help : Help
     $ iomanager -h
@@ -433,6 +498,8 @@ ioManager V1.7 - I/O Management Tool
     $ iomanager -c
 -t, --thumb : 해당 폴더 또는 사용자가 입력한 폴더의 이름을 가진 csv 데이터로 약속된 폴더에 thumbnail을 생성합니다.
     $ iomanager -t
+-x, --xlsx : 해당 폴더 또는 사용자가 입력한 폴더의 이름을 가진 csv 데이터로 xlsx 파일을 생성합니다.
+    $ iomanager -x
 """
 	)
 
@@ -440,7 +507,7 @@ def main():
 	"""
 	특정 경로 하위의 모든 시퀀스를 찾아 분석하여, 복사 및 썸네일을 생성하는 툴이다.
 	"""
-	opts, args = getopt.getopt(sys.argv[1:], "p:vcth",["path=", "csv", "copy", "thumb", "help"])
+	opts, args = getopt.getopt(sys.argv[1:], "p:vctxh",["path=", "csv", "copy", "thumb", "xlsx", "help"])
 	if len(opts) == 0 and len(args) == 0 :
 		help()
 		sys.exit(1)
@@ -448,6 +515,7 @@ def main():
 	csv = False
 	copy = False
 	thumb = False
+	xlsx = False
 	for key, value in opts :
 		if key in ("-h", "--help"):
 			help()
@@ -460,8 +528,11 @@ def main():
 			copy = True
 		elif key in ("-t", "--thumb"):
 			thumb = True
+		elif key in ("-x", "--xlsx"):
+			xlsx = True
 		else:
 			"Check Option '-h, --help'"
+			return
 	if not path.endswith("/"):
 		path += "/"
 	regx = re.search("/show/.+/input/(\d+)", path)
@@ -470,7 +541,7 @@ def main():
 		sys.exit(1)
 	dateFolder = regx.group(1)
 	dateFolder = path.split("/%s"%dateFolder)[0] + "/" + dateFolder
-	if not csv and not copy and not thumb:
+	if not csv and not copy and not thumb and not xlsx:
 		help()
 		sys.exit(1)
 	if csv:
@@ -498,6 +569,12 @@ def main():
 			print("Error - no CSV data.")
 			sys.exit(1)
 		thumbTask(data, path)
+	if xlsx:
+		csvFile = "%s.csv"%dateFolder
+		if not os.path.exists(csvFile):
+			print("Error - no CSV")
+			sys.exit(1)
+		makeXlsx(csvFile)
 
 if __name__ == "__main__":
 	main()
