@@ -23,7 +23,7 @@ def findImages(path):
 	fileList = []
 	for rootname, _, filenames in os.walk(path):
 		for filename in filenames:
-			if not filename.lower().endswith((".dpx",".exr",".jpg",".jpeg",".tiff",".tif")):
+			if not filename.lower().endswith((".dpx",".exr",".jpg",".jpeg",".tiff",".tif",".png",".sgi",".tga")):
 				continue
 			fileList.append(os.path.join(rootname,filename))
 	return fileList
