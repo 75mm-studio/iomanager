@@ -332,15 +332,15 @@ def copyFiles(trgt, dstFolder, errList, sem):
 	"""
 	sem.acquire()
 	# Make dirs
-	proc = subprocess.Popen(["mkdir -p %s"%dstFolder], stdout = subprocess.PIPE,  stderr = subprocess.PIPE, shell=True)
-	stdout, stderr = proc.communicate()
-	if stderr:
-		errList.append("Error - %s"%stderr)
+	try:
+		os.system("mkdir -p %s"%dstFolder)
+	except Exception as e:
+		errList.append("Error - %s"%e)
 	# Copy files
-	proc = subprocess.Popen(["cp -f %s %s"%(trgt, dstFolder)], stdout = subprocess.PIPE,  stderr = subprocess.PIPE, shell=True)
-	stdout, stderr = proc.communicate()
-	if stderr:
-		errList.append("Error - %s"%stderr)
+	try:
+		os.system("cp -f %s %s"%(trgt, dstFolder))
+	except Exception as e:
+		errList.append("Error - %s"%e)
 	sem.release()
 
 def thumbTask(data, path):
@@ -390,18 +390,15 @@ def createThumb(line, errList, sem):
 	width = int(fmt.split("x")[0]) / 10 # 1/10 size
 	thumbFolder = os.path.dirname(thumbPath)
 	# Make dirs
-	proc = subprocess.Popen(["mkdir -p %s"%thumbFolder], stdout = subprocess.PIPE,  stderr = subprocess.PIPE, shell=True)
-	stdout, stderr = proc.communicate()
-	if stderr:
-		errList.append("Error - %s"%stderr)
+	try:
+		os.system("mkdir -p %s"%thumbFolder)
+	except Exception as e:
+		errList.append("Error - %s"%e)
 	# Make thumbnail
-	proc = subprocess.Popen(["%s -y -loglevel error -i %s -vf scale=%s:-1 %s"%(FFMPEG, orgPlate, width, thumbPath)],
-		stdout = subprocess.PIPE,
-		stderr = subprocess.PIPE,
-		shell=True)
-	stdout, stderr = proc.communicate()
-	if stderr:
-		errList.append("Error - ffmpeg : %s"%stderr)
+	try:
+		os.system("%s -y -loglevel error -i %s -vf scale=%s:-1 %s"%(FFMPEG, orgPlate, width, thumbPath))
+	except Exception as e:
+		errList.append("Error - ffmpeg : %s"%e)
 	sem.release()
 
 def saveLog(path, errLog):
@@ -489,17 +486,17 @@ def help():
 ioManager V1.8 - I/O Management Tool
 
 -h, --help : Help
-    $ iomanager -h
+	$ iomanager -h
 -p, --path : 사용자가 폴더를 직접 입력합니다.
-    $ iomanager -p /show/PROJECT/input/DATE
+	$ iomanager -p /show/PROJECT/input/DATE
 -v, --csv : 해당 폴더 또는 사용자가 입력한 폴더에서 시퀀스를 분석하여 csv파일을 생성합니다.
-    $ iomanager -v
+	$ iomanager -v
 -c, --copy : 해당 폴더 또는 사용자가 입력한 폴더의 이름을 가진 csv 데이터로 "/show/PROJECT/scenes" 하위에 복사합니다. plate 및 ext이름의 폴더가 생성되며, thumbnail을 생성합니다.
-    $ iomanager -c
+	$ iomanager -c
 -t, --thumb : 해당 폴더 또는 사용자가 입력한 폴더의 이름을 가진 csv 데이터로 약속된 폴더에 thumbnail을 생성합니다.
-    $ iomanager -t
+	$ iomanager -t
 -x, --xlsx : 해당 폴더 또는 사용자가 입력한 폴더의 이름을 가진 csv 데이터로 xlsx 파일을 생성합니다.
-    $ iomanager -x
+	$ iomanager -x
 """
 	)
 
