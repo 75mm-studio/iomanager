@@ -6,11 +6,9 @@ import getopt
 import json
 import csv
 import subprocess
-import threading
 import progress
 import time
 
-SEM = 2
 FFPROBE = "/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffprobe"
 FFMPEG = "/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffmpeg"
 LIBREOFFICE = "/usr/bin/soffice"
@@ -33,22 +31,12 @@ def fileAnalyze(fileList, path):
 	파일 리스트를 받아, 멀티쓰레딩으로 파일의 정보를 분석하여 딕셔너리의 형태로 반환한다.
 	"""
 	print("File analyzing...")
-	# Use multi thread
-	lock = threading.Lock()
-	sem = threading.Semaphore(SEM)
-	threads = []
 	fileDict = {}
 	startTime = time.time()
-	for fileName in fileList:
-		lock.acquire()
-		t = threading.Thread(target=seqInfo, args=(fileName, fileDict, path, sem))
-		t.start()
-		lock.release()
-		threads.append(t)
 	num = 0
-	for t in threads:
+	for fileName in fileList:
+		fileDict = seqInfo(fileName, fileDict, path)
 		num += 1
-		t.join()
 		progress.printBar(num, len(fileList), startTime)
 	# Add info
 	for name in fileDict.keys():
@@ -59,11 +47,10 @@ def fileAnalyze(fileList, path):
 		fileDict[name] = value
 	return fileDict
 
-def seqInfo(fileName, fileDict, path, sem):
+def seqInfo(fileName, fileDict, path):
 	"""
 	시퀀스네임을 받아 정보를 분석하여 딕셔너리에 담는다.
 	"""
-	sem.acquire()
 	fullName, ext = os.path.splitext(fileName)
 	platePath = "%s/scenes/%s/plate"%(path.split("/input/")[0], os.path.dirname(fileName).replace(path, ""))
 	nameGroup = re.search("(.+)([\._])(\d+)$",fullName)
@@ -87,7 +74,7 @@ def seqInfo(fileName, fileDict, path, sem):
 		fileDict[name]["numlist"] = [seq]
 		fileDict[name]["shotname"] = os.path.basename(nameGroup.group(1))
 		fileDict[name]["platepath"] = platePath
-	sem.release()
+	return fileDict
 
 def fileInfo(name, nameDict):
 	"""
@@ -299,25 +286,15 @@ def prjCsvSave(data, dateFolder):
 
 def copyTask(dataDict, path):
 	"""
-	멀티쓰레드를 이용하여 데이터를 복사한다.
+	데이터를 복사한다.
 	"""
 	print("Copying...")
-	# Use multi thread
-	lock = threading.Lock()
-	sem = threading.Semaphore(SEM)
-	threads = []
 	errList = []
 	startTime = time.time()
-	for trgt in dataDict.keys():
-		lock.acquire()
-		t = threading.Thread(target=copyFiles, args=(trgt, dataDict[trgt], errList, sem))
-		t.start()
-		lock.release()
-		threads.append(t)
 	num = 0
-	for t in threads:
+	for trgt in dataDict.keys():
+		errList = copyFiles(trgt, dataDict[trgt], errList)
 		num += 1
-		t.join()
 		progress.printBar(num, len(dataDict.keys()), startTime)
 	# save Error log
 	if errList:
@@ -326,11 +303,10 @@ def copyTask(dataDict, path):
 		print("Error - Error occurs during the copy process.")
 		saveLog(path, errLog)
 
-def copyFiles(trgt, dstFolder, errList, sem):
+def copyFiles(trgt, dstFolder, errList):
 	"""
 	폴더를 생성하고, 데이터를 복사한다.
 	"""
-	sem.acquire()
 	# Make dirs
 	try:
 		os.system("mkdir -p %s"%dstFolder)
@@ -341,29 +317,18 @@ def copyFiles(trgt, dstFolder, errList, sem):
 		os.system("cp -f %s %s"%(trgt, dstFolder))
 	except Exception as e:
 		errList.append("Error - %s"%e)
-	sem.release()
 
 def thumbTask(data, path):
 	"""
 	멀티쓰레드를 이용하여 썸네일을 생성한다.
 	"""
 	print("Creating thumbnails...")
-	# Use multi thread
-	lock = threading.Lock()
-	sem = threading.Semaphore(SEM)
-	threads = []
 	errList = []
 	startTime = time.time()
-	for line in data:
-		lock.acquire()
-		t = threading.Thread(target=createThumb, args=(line, errList, sem))
-		t.start()
-		lock.release()
-		threads.append(t)
 	num = 0
-	for t in threads:
+	for line in data:
+		errList = createThumb(line, errList)
 		num += 1
-		t.join()
 		progress.printBar(num, len(data), startTime)
 	# save Error log
 	if errList:
@@ -372,12 +337,11 @@ def thumbTask(data, path):
 		print("Error - Error occurs during making thumbnail process.")
 		saveLog(path, errLog)
 
-def createThumb(line, errList, sem):
+def createThumb(line, errList):
 	"""
 	ffmpeg를 사용하여 썸네일을 생성한다.
 	에러가 발생되면 에러리스트에 추가한다.
 	"""
-	sem.acquire()
 	origin = line[19]
 	first = int(line[6])
 	last = int(line[7])
@@ -399,7 +363,7 @@ def createThumb(line, errList, sem):
 		os.system("%s -y -loglevel error -i %s -vf scale=%s:-1 %s"%(FFMPEG, orgPlate, width, thumbPath))
 	except Exception as e:
 		errList.append("Error - ffmpeg : %s"%e)
-	sem.release()
+	return errList
 
 def saveLog(path, errLog):
 	"""
