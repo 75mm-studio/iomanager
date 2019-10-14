@@ -501,7 +501,7 @@ def main():
 		print("Error - 약속된 경로가 아닙니다. ex) /show/PROJECT/input/DATE/")
 		sys.exit(1)
 	dateFolder = regx.group(1)
-	dateFolder = path.split("/%s"%dateFolder)[0] + "/" + dateFolder
+	dateFolder = path.split("/input/%s"%dateFolder)[0] + "/input/" + dateFolder
 	if not csv and not copy and not thumb and not xlsx:
 		help()
 		sys.exit(1)
