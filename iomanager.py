@@ -177,8 +177,21 @@ def csvSave(csvFile, fileDict, path, dateFolder):
 				"",
 				"",
 				name,
-				"%s/%s"%(fileDict[name]["platepath"], fileDict[name]["ext"])
+				"%s/%s"%(fileDict[name]["platepath"], fileDict[name]["ext"]),
+				getIncolor(fileDict[name]["ext"])
 				])
+
+def getIncolor(ext):
+	"""
+	exr별 디폴트 컬러스페이스를 반환한다.
+	기본은 Rec.709이다.
+	"""
+	incolorspace = "Output - Rec.709"
+	if ext == ".exr":
+		incolorspace = "Utility - Raw"
+	elif ext == ".dpx":
+		incolorspace = "ADX - ADX10"
+	return incolorspace
 
 def checkData(csvFile, dateFolder):
 	"""
@@ -446,6 +459,13 @@ def getColumnWidth(widthDict, col, thisWidth):
 		return widthDict
 	return widthDict
 
+
+def makeProxy():
+	cmd = "export OCIO=%s && %s --frame %s-%s %s --colorconvert %s %s -o %s"%(OCIO, OIIOTOOL, first, last, inputfile, incolorspace, outcolorspace, outfile)
+
+def makeMov():
+	cmd = "%s -r 24 -f image2 -start_number %s -i %s -c:v libx264 -pix_fmt yuv420p %s"%(FFMPEG, first, inputfile, outfile)
+
 def help():
 	print(
 """
@@ -457,10 +477,12 @@ ioManager V1.8 - I/O Management Tool
 	$ iomanager -p /show/PROJECT/input/DATE
 -v, --csv : 해당 폴더 또는 사용자가 입력한 폴더에서 시퀀스를 분석하여 csv파일을 생성합니다.
 	$ iomanager -v
--c, --copy : 해당 폴더 또는 사용자가 입력한 폴더의 이름을 가진 csv 데이터로 "/show/PROJECT/scenes" 하위에 복사합니다. plate 및 ext이름의 폴더가 생성되며, thumbnail을 생성합니다.
+-c, --copy : 해당 폴더 또는 사용자가 입력한 폴더의 이름을 가진 csv 데이터로 "/show/PROJECT/scenes" 하위에 복사합니다. plate 및 ext이름의 폴더가 생성되며, thumbnail과 mov를 생성합니다.
 	$ iomanager -c
 -t, --thumb : 해당 폴더 또는 사용자가 입력한 폴더의 이름을 가진 csv 데이터로 약속된 폴더에 thumbnail을 생성합니다.
 	$ iomanager -t
+-m, --mov : 해당 폴더 또는 사용자가 입력한 폴더의 이름을 가진 csv 데이터로 약속된 폴더에 mov를 생성합니다.
+	$ iomanager -m
 -x, --xlsx : 해당 폴더 또는 사용자가 입력한 폴더의 이름을 가진 csv 데이터로 xlsx 파일을 생성합니다.
 	$ iomanager -x
 """
@@ -470,7 +492,7 @@ def main():
 	"""
 	특정 경로 하위의 모든 시퀀스를 찾아 분석하여, 복사 및 썸네일을 생성하는 툴이다.
 	"""
-	opts, args = getopt.getopt(sys.argv[1:], "p:vctxh",["path=", "csv", "copy", "thumb", "xlsx", "help"])
+	opts, args = getopt.getopt(sys.argv[1:], "p:vctmxh",["path=", "csv", "copy", "thumb", "mov", "xlsx", "help"])
 	if len(opts) == 0 and len(args) == 0 :
 		help()
 		sys.exit(1)
@@ -478,6 +500,7 @@ def main():
 	csv = False
 	copy = False
 	thumb = False
+	mov = False
 	xlsx = False
 	for key, value in opts :
 		if key in ("-h", "--help"):
@@ -490,6 +513,8 @@ def main():
 		elif key in ("-c", "--copy"):
 			copy = True
 		elif key in ("-t", "--thumb"):
+			thumb = True
+		elif key in ("-m", "--mov"):
 			thumb = True
 		elif key in ("-x", "--xlsx"):
 			xlsx = True
@@ -525,6 +550,7 @@ def main():
 		dataDict = mkDataList(data)
 		copyTask(dataDict, path)
 		thumbTask(data, path)
+		movTask(data, path)
 	if thumb:
 		csvFile = "%s.csv"%dateFolder
 		data = importCSV(csvFile)
@@ -532,6 +558,13 @@ def main():
 			print("Error - no CSV data.")
 			sys.exit(1)
 		thumbTask(data, path)
+	if mov:
+		csvFile = "%s.csv"%dateFolder
+		data = importCSV(csvFile)
+		if not data:
+			print("Error - no CSV data.")
+			sys.exit(1)
+		movTask(data, path)
 	if xlsx:
 		csvFile = "%s.csv"%dateFolder
 		if not os.path.exists(csvFile):
