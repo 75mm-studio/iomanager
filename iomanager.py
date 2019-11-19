@@ -9,9 +9,11 @@ import subprocess
 import progress
 import time
 
-FFPROBE = "/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffprobe"
-FFMPEG = "/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffmpeg"
+FFPROBE = "/usr/local/bin/ffmprobe"#"/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffprobe"
+FFMPEG = "/usr/local/bin/ffmpeg"#"/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffmpeg"
 LIBREOFFICE = "/usr/bin/soffice"
+OCIO = "/Users/jyub/app/OpenColorIO-Configs/aces_1.0.3/config.ocio"
+OIIOTOOL = "/usr/local/bin/oiiotool"
 
 def findImages(path):
 	"""
@@ -360,7 +362,7 @@ def createThumb(line, errList):
 		errList.append("Error - %s"%e)
 	# Make thumbnail
 	try:
-		os.system("%s -y -loglevel error -i %s -vf scale=%s:-1 %s"%(FFMPEG, orgPlate, width, thumbPath))
+		os.system("export OCIO=%s && %s --frame %s %s --colorconvert %s %s --resize %sx0 -o %s"%(OCIO, OIIOTOOL, frame, orgPlate, incolorspace, outcolorspace, width/10, thumbPath))
 	except Exception as e:
 		errList.append("Error - ffmpeg : %s"%e)
 	return errList
