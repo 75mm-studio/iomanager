@@ -30,7 +30,7 @@ def findImages(path):
 
 def fileAnalyze(fileList, path):
 	"""
-	파일 리스트를 받아, 멀티쓰레딩으로 파일의 정보를 분석하여 딕셔너리의 형태로 반환한다.
+	파일 리스트를 받아, 파일의 정보를 분석하여 딕셔너리의 형태로 반환한다.
 	"""
 	print("File analyzing...")
 	fileDict = {}
@@ -153,7 +153,10 @@ def csvSave(csvFile, fileDict, path, dateFolder):
 			"Deadline",
 			"Task",
 			"Input Path",
-			"Plate Path"
+			"Plate Path",
+			"Proxy Path",
+			"Colorspace",
+			"Mov"
 			])
 		for name in sorted(fileDict.keys()):
 			csvW.writerow([
@@ -178,7 +181,9 @@ def csvSave(csvFile, fileDict, path, dateFolder):
 				"",
 				name,
 				"%s/%s"%(fileDict[name]["platepath"], fileDict[name]["ext"]),
-				getIncolor(fileDict[name]["ext"])
+				"%s/proxy"%(fileDict[name]["platepath"]),
+				getIncolor(fileDict[name]["ext"]),
+				"%s.mov"%(fileDict[name]["platepath"])
 				])
 
 def getIncolor(ext):
@@ -294,7 +299,10 @@ def prjCsvSave(data, dateFolder):
 			"Deadline",
 			"Task",
 			"Input Path",
-			"Plate Path"
+			"Plate Path",
+			"Proxy Path",
+			"Colorspace",
+			"Mov"
 			])
 		for line in prjData:
 			csvW.writerow(line)
@@ -335,7 +343,7 @@ def copyFiles(trgt, dstFolder, errList):
 
 def thumbTask(data, path):
 	"""
-	멀티쓰레드를 이용하여 썸네일을 생성한다.
+	썸네일을 생성한다.
 	"""
 	print("Creating thumbnails...")
 	errList = []
@@ -354,7 +362,7 @@ def thumbTask(data, path):
 
 def createThumb(line, errList):
 	"""
-	ffmpeg를 사용하여 썸네일을 생성한다.
+	oiiotool을 사용하여 썸네일을 생성한다.
 	에러가 발생되면 에러리스트에 추가한다.
 	"""
 	origin = line[19]
@@ -362,6 +370,7 @@ def createThumb(line, errList):
 	last = int(line[7])
 	thumbPath = line[3]
 	fmt = line[4]
+	incolorspace = line[22]
 	if first == 1 and last == 1:
 		orgPlate = origin
 	else:
@@ -375,9 +384,86 @@ def createThumb(line, errList):
 		errList.append("Error - %s"%e)
 	# Make thumbnail
 	try:
-		os.system("export OCIO=%s && %s --frame %s %s --colorconvert %s %s --resize %sx0 -o %s"%(OCIO, OIIOTOOL, frame, orgPlate, incolorspace, outcolorspace, width/10, thumbPath))
+		os.system("export OCIO=%s && %s %s --colorconvert '%s' 'Ouput - Rec.709' --resize %sx0 -o %s"%(OCIO, OIIOTOOL, orgPlate, incolorspace, width, thumbPath))
 	except Exception as e:
-		errList.append("Error - ffmpeg : %s"%e)
+		errList.append("Error - thumbnail oiioTool : %s"%e)
+	return errList
+
+def proxyTask(data, path):
+	"""
+	Proxy image를 생성한다.
+	"""
+	print("Creating proxy images...")
+	errList = []
+	startTime = time.time()
+	num = 0
+	for line in data:
+		errList = createProxy(line, errList)
+		num += 1
+		progress.printBar(num, len(data), startTime)
+	# save Error log
+	if errList:
+		errLog = {}
+		errLog["proxylog"] = errList
+		print("Error - Error occurs during making proxy process.")
+		saveLog(path, errLog)
+
+def createProxy(line, errList):
+	"""
+	oiiotool을 사용하여 썸네일을 생성한다.
+	에러가 발생되면 에러리스트에 추가한다.
+	"""
+	origin = line[19]
+	first = int(line[6])
+	last = int(line[7])
+	proxyPath = line[21]
+	incolorspace = line[22]
+	proxyFolder = os.path.dirname(proxyPath)
+	# Make dirs
+	try:
+		os.system("mkdir -p %s"%proxyFolder)
+	except Exception as e:
+		errList.append("Error - %s"%e)
+	# Make proxy
+	try:
+		os.system("export OCIO=%s && %s --frame %s-%s %s --colorconvert '%s' 'Ouput - Rec.709' -o %s"%(OCIO, OIIOTOOL, first, last, origin, incolorspace, proxyPath))
+	except Exception as e:
+		errList.append("Error - proxy oiioTool : %s"%e)
+	return errList
+
+def movTask(data, path):
+	"""
+	mov를 생성한다.
+	"""
+	print("Creating mov...")
+	errList = []
+	startTime = time.time()
+	num = 0
+	for line in data:
+		errList = createMov(line, errList)
+		num += 1
+		progress.printBar(num, len(data), startTime)
+	# save Error log
+	if errList:
+		errLog = {}
+		errLog["movlog"] = errList
+		print("Error - Error occurs during making mov process.")
+		saveLog(path, errLog)
+
+def createMov(line, errList):
+	"""
+	ffmpeg를 사용하여 mov를 생성한다.
+	에러가 발생되면 에러리스트에 추가한다.
+	"""
+	first = int(line[6])
+	fps = line[5]
+	proxyPath = line[21]
+	movPath = line[23]
+	# Make mov
+	try:
+		os.system("%s -r %s -f image2 -start_number %s -i %s -c:v libx264 -pix_fmt yuv420p %s"%(FFMPEG, fps, first, proxyPath, movPath))
+	except Exception as e:
+		errList.append("Error - mov ffmpeg : %s"%e)
 	return errList
 
 def saveLog(path, errLog):
@@ -458,13 +544,6 @@ def getColumnWidth(widthDict, col, thisWidth):
 		widthDict[col] = thisWidth
 		return widthDict
 	return widthDict
-
-
-def makeProxy():
-	cmd = "export OCIO=%s && %s --frame %s-%s %s --colorconvert %s %s -o %s"%(OCIO, OIIOTOOL, first, last, inputfile, incolorspace, outcolorspace, outfile)
-
-def makeMov():
-	cmd = "%s -r 24 -f image2 -start_number %s -i %s -c:v libx264 -pix_fmt yuv420p %s"%(FFMPEG, first, inputfile, outfile)
 
 def help():
 	print(
@@ -550,6 +629,7 @@ def main():
 		dataDict = mkDataList(data)
 		copyTask(dataDict, path)
 		thumbTask(data, path)
+		proxyTask(data, path)
 		movTask(data, path)
 	if thumb:
 		csvFile = "%s.csv"%dateFolder
@@ -564,6 +644,7 @@ def main():
 		if not data:
 			print("Error - no CSV data.")
 			sys.exit(1)
+		proxyTask(data, path)
 		movTask(data, path)
 	if xlsx:
 		csvFile = "%s.csv"%dateFolder
