@@ -9,7 +9,7 @@ import subprocess
 import progress
 import time
 
-FFPROBE = "/usr/local/bin/ffmprobe"#"/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffprobe"
+FFPROBE = "/usr/local/bin/ffprobe"#"/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffprobe"
 FFMPEG = "/usr/local/bin/ffmpeg"#"/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffmpeg"
 LIBREOFFICE = "/usr/bin/soffice"
 OCIO = "/Users/jyub/app/OpenColorIO-Configs/aces_1.0.3/config.ocio"
@@ -134,7 +134,7 @@ def csvSave(csvFile, fileDict, path, dateFolder):
 		csvW = csv.writer(f)
 		csvW.writerow([
 			"Input Folder Date",
-			"Dirtory Folder",
+			"Directory Folder",
 			"Shot",
 			"Thumbnail",
 			"Format",
@@ -180,10 +180,10 @@ def csvSave(csvFile, fileDict, path, dateFolder):
 				"",
 				"",
 				name,
-				"%s/%s"%(fileDict[name]["platepath"], fileDict[name]["ext"]),
-				"%s/proxy"%(fileDict[name]["platepath"]),
+				"%s/%s/%s.%s"%(fileDict[name]["platepath"], fileDict[name]["ext"], os.path.splitext(os.path.basename(name))[0], fileDict[name]["ext"]),
+				"%s/proxy/%s.jpg"%(fileDict[name]["platepath"], os.path.splitext(os.path.basename(name))[0]),
 				getIncolor(fileDict[name]["ext"]),
-				"%s.mov"%(fileDict[name]["platepath"])
+				"%s.mov"%(os.path.dirname(fileDict[name]["platepath"]))
 				])
 
 def getIncolor(ext):
@@ -192,10 +192,10 @@ def getIncolor(ext):
 	기본은 Rec.709이다.
 	"""
 	incolorspace = "Output - Rec.709"
-	if ext == ".exr":
+	if ext == "exr":
 		incolorspace = "Utility - Raw"
-	elif ext == ".dpx":
-		incolorspace = "ADX - ADX10"
+	elif ext == "dpx":
+		incolorspace = "Input - ADX - ADX10"
 	return incolorspace
 
 def checkData(csvFile, dateFolder):
@@ -255,7 +255,7 @@ def mkDataList(data):
 	dataDict = {}
 	for line in data:
 		origin = line[19]
-		platePath = line[20]
+		platePath = os.path.dirname(line[20])
 		first = int(line[6])
 		last = int(line[7])
 		if first == 1 and last == 1:
@@ -384,7 +384,7 @@ def createThumb(line, errList):
 		errList.append("Error - %s"%e)
 	# Make thumbnail
 	try:
-		os.system("export OCIO=%s && %s %s --colorconvert '%s' 'Ouput - Rec.709' --resize %sx0 -o %s"%(OCIO, OIIOTOOL, orgPlate, incolorspace, width, thumbPath))
+		os.system("export OCIO=%s && %s %s --colorconvert '%s' 'Output - Rec.709' --resize %sx0 -o %s"%(OCIO, OIIOTOOL, orgPlate, incolorspace, width, thumbPath))
 	except Exception as e:
 		errList.append("Error - thumbnail oiioTool : %s"%e)
 	return errList
@@ -426,7 +426,7 @@ def createProxy(line, errList):
 		errList.append("Error - %s"%e)
 	# Make proxy
 	try:
-		os.system("export OCIO=%s && %s --frame %s-%s %s --colorconvert '%s' 'Ouput - Rec.709' -o %s"%(OCIO, OIIOTOOL, first, last, origin, incolorspace, proxyPath))
+		os.system("export OCIO=%s && %s --frames %s-%s %s --colorconvert '%s' 'Output - Rec.709' -o %s"%(OCIO, OIIOTOOL, first, last, origin, incolorspace, proxyPath))
 	except Exception as e:
 		errList.append("Error - proxy oiioTool : %s"%e)
 	return errList
