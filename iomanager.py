@@ -97,7 +97,7 @@ def fileInfo(name, nameDict):
 		return nameDict
 	nameDict["width"] =  ffpInfo["streams"][0]["width"]
 	nameDict["height"] = ffpInfo["streams"][0]["height"]
-	nameDict["fps"] = ffpInfo["streams"][0]["r_frame_rate"].split("/")[0]
+	nameDict["fps"] = float(ffpInfo["streams"][0]["r_frame_rate"].split("/")[0]) / float(ffpInfo["streams"][0]["r_frame_rate"].split("/")[1])
 	return nameDict
 
 def csvTask(path, dateFolder):
@@ -202,7 +202,7 @@ def getIncolor(ext):
 	if ext == "exr":
 		incolorspace = "Utility - Raw"
 	elif ext == "dpx":
-		incolorspace = "Input - ADX - ADX10"
+		incolorspace = "ACES - ACEScct"
 	return incolorspace
 
 def checkData(csvFile, dateFolder):
