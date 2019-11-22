@@ -132,36 +132,11 @@ def csvSave(csvFile, fileDict, path, dateFolder):
 	"""
 	with open(csvFile, "w") as f:
 		csvW = csv.writer(f)
-		csvW.writerow([
-			"Input Folder Date",
-			"Directory Folder",
-			"Shot",
-			"Thumbnail",
-			"Format",
-			"FPS",
-			"ORG_In",
-			"ORG_Out",
-			"TW_In",
-			"TW_Out",
-			"Repo",
-			"Camera",
-			"Film Back",
-			"Focal Length",
-			"Assign",
-			"Status",
-			"Output",
-			"Deadline",
-			"Task",
-			"Input Path",
-			"Plate Path",
-			"Proxy Path",
-			"Colorspace",
-			"Mov"
-			])
+		csvW.writerow(titleList())
 		for name in sorted(fileDict.keys()):
 			csvW.writerow([
 				os.path.basename(dateFolder),
-				os.path.dirname(name).replace(dateFolder, ""),
+				os.path.dirname(name),
 				fileDict[name]["shotname"],
 				"%s/thumb/%s.jpg"%(dateFolder, fileDict[name]["shotname"]),
 				"%sx%s"%(fileDict[name]["width"], fileDict[name]["height"]),
@@ -183,8 +158,40 @@ def csvSave(csvFile, fileDict, path, dateFolder):
 				"%s/%s/%s.%s"%(fileDict[name]["platepath"], fileDict[name]["ext"], os.path.splitext(os.path.basename(name))[0], fileDict[name]["ext"]),
 				"%s/proxy/%s.jpg"%(fileDict[name]["platepath"], os.path.splitext(os.path.basename(name))[0]),
 				getIncolor(fileDict[name]["ext"]),
-				"%s.mov"%(os.path.dirname(fileDict[name]["platepath"]))
+				"%s/%s.mov"%(fileDict[name]["platepath"], fileDict[name]["shotname"])
 				])
+
+def titleList():
+	"""
+	CSV파일의 첫 줄에 들어갈 내용의 List를 반환한다.
+	"""
+	nameList = [
+		"Input Folder Date",
+		"Directory Folder",
+		"Shot",
+		"Thumbnail",
+		"Format",
+		"FPS",
+		"ORG_In",
+		"ORG_Out",
+		"TW_In",
+		"TW_Out",
+		"Repo",
+		"Camera",
+		"Film Back",
+		"Focal Length",
+		"Assign",
+		"Status",
+		"Output",
+		"Deadline",
+		"Task",
+		"Input Path",
+		"Plate Path",
+		"Proxy Path",
+		"Colorspace",
+		"Mov"
+		]
+	return nameList
 
 def getIncolor(ext):
 	"""
@@ -274,36 +281,12 @@ def prjCsvSave(data, dateFolder):
 	prjData = []
 	csvFile = "%s/data.csv"%os.path.dirname(dateFolder)
 	if os.path.exists(csvFile):
-		data = importCSV(csvFile)
+		beforeData = importCSV(csvFile)
+		prjData += beforeData
 	prjData += data
 	with open(csvFile, "w") as f:
 		csvW = csv.writer(f)
-		csvW.writerow([
-			"Input Folder Date",
-			"Dirtory Folder",
-			"Shot",
-			"Thumbnail",
-			"Format",
-			"FPS",
-			"ORG_In",
-			"ORG_Out",
-			"TW_In",
-			"TW_Out",
-			"Repo",
-			"Camera",
-			"Film Back",
-			"Focal Length",
-			"Assign",
-			"Status",
-			"Output",
-			"Deadline",
-			"Task",
-			"Input Path",
-			"Plate Path",
-			"Proxy Path",
-			"Colorspace",
-			"Mov"
-			])
+		csvW.writerow(titleList())
 		for line in prjData:
 			csvW.writerow(line)
 
@@ -316,7 +299,8 @@ def copyTask(dataDict, path):
 	startTime = time.time()
 	num = 0
 	for trgt in dataDict.keys():
-		errList = copyFiles(trgt, dataDict[trgt], errList)
+		copyErrList = copyFiles(trgt, dataDict[trgt])
+		errList += copyErrList
 		num += 1
 		progress.printBar(num, len(dataDict.keys()), startTime)
 	# save Error log
@@ -326,10 +310,11 @@ def copyTask(dataDict, path):
 		print("Error - Error occurs during the copy process.")
 		saveLog(path, errLog)
 
-def copyFiles(trgt, dstFolder, errList):
+def copyFiles(trgt, dstFolder):
 	"""
 	폴더를 생성하고, 데이터를 복사한다.
 	"""
+	errList = []
 	# Make dirs
 	try:
 		os.system("mkdir -p %s"%dstFolder)
@@ -340,6 +325,7 @@ def copyFiles(trgt, dstFolder, errList):
 		os.system("cp -f %s %s"%(trgt, dstFolder))
 	except Exception as e:
 		errList.append("Error - %s"%e)
+	return errList
 
 def thumbTask(data, path):
 	"""
@@ -461,7 +447,7 @@ def createMov(line, errList):
 	movPath = line[23]
 	# Make mov
 	try:
-		os.system("%s -r %s -f image2 -start_number %s -i %s -c:v libx264 -pix_fmt yuv420p %s"%(FFMPEG, fps, first, proxyPath, movPath))
+		os.system("%s -loglevel error -y -r %s -f image2 -start_number %s -i %s -c:v libx264 -pix_fmt yuv420p %s"%(FFMPEG, fps, first, proxyPath, movPath))
 	except Exception as e:
 		errList.append("Error - mov ffmpeg : %s"%e)
 	return errList
@@ -594,7 +580,7 @@ def main():
 		elif key in ("-t", "--thumb"):
 			thumb = True
 		elif key in ("-m", "--mov"):
-			thumb = True
+			mov = True
 		elif key in ("-x", "--xlsx"):
 			xlsx = True
 		else:
@@ -608,7 +594,7 @@ def main():
 		sys.exit(1)
 	dateFolder = regx.group(1)
 	dateFolder = path.split("/input/%s"%dateFolder)[0] + "/input/" + dateFolder
-	if not csv and not copy and not thumb and not xlsx:
+	if not csv and not copy and not thumb and not mov and not xlsx:
 		help()
 		sys.exit(1)
 	if csv:
