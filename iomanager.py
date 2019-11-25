@@ -9,11 +9,11 @@ import subprocess
 import progress
 import time
 
-FFPROBE = "/usr/local/bin/ffprobe"#"/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffprobe"
-FFMPEG = "/usr/local/bin/ffmpeg"#"/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffmpeg"
+FFPROBE = "/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffprobe"
+FFMPEG = "/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffmpeg"
 LIBREOFFICE = "/usr/bin/soffice"
-OCIO = "/Users/jyub/app/OpenColorIO-Configs/aces_1.0.3/config.ocio"
-OIIOTOOL = "/usr/local/bin/oiiotool"
+OIIOTOOL = "/storage/INHOUSE/apps/openimageio/2.0.11/bin/oiiotool"
+OCIO = "/storage/INHOUSE/apps/OpenColorIO-Configs/aces_1.0.3/config.ocio"
 
 def findImages(path):
 	"""
@@ -534,7 +534,7 @@ def getColumnWidth(widthDict, col, thisWidth):
 def help():
 	print(
 """
-ioManager V1.8 - I/O Management Tool
+ioManager V2.0 - I/O Management Tool
 
 -h, --help : Help
 	$ iomanager -h
