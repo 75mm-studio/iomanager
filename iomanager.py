@@ -200,7 +200,7 @@ def getIncolor(ext):
 	"""
 	incolorspace = "Output - Rec.709"
 	if ext == "exr":
-		incolorspace = "Utility - Raw"
+		incolorspace = "ACES - ACES2065-1"
 	elif ext == "dpx":
 		incolorspace = "ACES - ACEScct"
 	return incolorspace
@@ -447,7 +447,7 @@ def createMov(line, errList):
 	movPath = line[23]
 	# Make mov
 	try:
-		os.system("%s -loglevel error -y -r %s -f image2 -start_number %s -i %s -c:v libx264 -pix_fmt yuv420p %s"%(FFMPEG, fps, first, proxyPath, movPath))
+		os.system("%s -loglevel error -y -r %s -f image2 -start_number %s -i %s -c:v libx264 -pix_fmt yuv420p -vf 'pad=ceil(iw/2)*2:ceil(ih/2)*2' %s"%(FFMPEG, fps, first, proxyPath, movPath))
 	except Exception as e:
 		errList.append("Error - mov ffmpeg : %s"%e)
 	return errList
