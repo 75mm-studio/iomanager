@@ -12,7 +12,7 @@ import time
 FFPROBE = "/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffprobe"
 FFMPEG = "/storage/INHOUSE/apps/ffmpeg-4.1.4-amd64-static/ffmpeg"
 LIBREOFFICE = "/usr/bin/soffice"
-OIIOTOOL = "/storage/INHOUSE/apps/openimageio/2.0.11/bin/oiiotool"
+OIIOTOOL = "/usr/bin/oiiotool"
 OCIO = "/storage/INHOUSE/apps/OpenColorIO-Configs/aces_1.0.3/config.ocio"
 
 def findImages(path):
