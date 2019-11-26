@@ -12,6 +12,7 @@ $ iom
 - -s, --csv : csv파일을 생성합니다.
 - -c, --copy : 약속된 위치로 파일을 복사하고, 썸네일을 생성합니다.
 - -t, --thumb : 약속된 위치에 썸네일을 생성합니다.
+- -m, --mov : 약속된 위치에 Proxy파일 및 mov를 생성합니다.
 - -x, --xlsx : 해당 폴더 또는 사용자가 입력한 폴더의 이름을 가진 csv 데이터로 xlsx 파일을 생성합니다.
 - -h, --help : 도움말 출력
 ```
@@ -20,7 +21,7 @@ $ iom -p /show/PROJECT/input/DATE -s
 
 #### Features
 - 약속된 폴더에서만 사용이 가능한 툴입니다.("/show/PROJECT/input/DATE")
-- FFPROBE와 FFMPEG를 사용합니다.
+- FFPROBE, FFMPEG, oiiotool, ocio를 사용합니다.
 
 # csv example
 
